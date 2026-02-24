@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<job name="PythiaFlow" maxFilesPerProcess="1" fileListSyntax="paths" simulateSubmission="false">
+
+    <command>
+        setup 64bits
+        setup nfs4
+        
+        echo "Processing File List: $FILELIST"
+        cat $FILELIST
+
+        cp /star/data01/pwg/ptribedy/pythia8p3_from_milan/flowanalysis.C .
+
+        # $FILELIST is a .local.list file containing the ROOT paths for this job
+        set INFILE  = "$FILELIST"
+        set OUTFILE = "analysis_$JOBID.root"
+
+        echo "INFILE  = $INFILE"
+        echo "OUTFILE = $OUTFILE"
+
+        # Run ROOT Analysis: flowanalysis(inputFiles, outputFile)
+        # Use the safe quoting trick so csh doesn't choke.
+        root -l -b -q 'flowanalysis.C("'"$INFILE"'","'"$OUTFILE"'")'
+    </command>
+
+    <!-- SUMS will read ROOT_LIST and fan it out according to maxFilesPerProcess -->
+    <input URL="filelist:/star/data05/scratch/ptribedy/pythia_pp200/rootfiles.list" />
+
+    <stdout URL="file:/star/data05/scratch/ptribedy/pythia_pp200/log/ana_$JOBID.out" />
+    <stderr URL="file:/star/data05/scratch/ptribedy/pythia_pp200/log/ana_$JOBID.err" />
+
+    <output fromScratch="analysis_*.root" toURL="file:/star/data05/scratch/ptribedy/pythia_pp200/" />
+
+    <Generator>
+        <Location>/star/data05/scratch/ptribedy/pythia_pp200/sched/</Location>
+    </Generator>
+</job>

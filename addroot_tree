@@ -1,0 +1,138 @@
+#!/bin/bash
+
+# ---------------- CONFIGURATION ----------------
+# Input Directory (Scratch) - ALL temp files will go here now
+INPUT_DIR="/star/data05/scratch/ptribedy/pythia_pp200"
+DATE=$(date +"%m_%d_%y_%H_%M_%S")
+
+# Base name for output files
+OUTPUT_PREFIX="${INPUT_DIR}/pythia_tree_${DATE}_seq"
+
+# PATHS FOR TEMPORARY FILES (Inside INPUT_DIR to keep PWD clean)
+MACRO_PATH="${INPUT_DIR}/BatchMerge.C"
+ALL_FILES_LIST="${INPUT_DIR}/all_files.list"
+CHUNK_PREFIX="${INPUT_DIR}/chunk_list_"
+LOG_PREFIX="${INPUT_DIR}/log_"
+
+# -------------------------------------------------------------------
+
+# Default to 30 jobs
+N_JOBS=${1:-30} 
+
+# Helper: Draw Progress Bar
+draw_bar() {
+    local curr=$1
+    local tot=$2
+    local w=$3
+    if [ "$tot" -eq 0 ]; then tot=1; fi
+    local percent=$(( (curr * 100) / tot ))
+    if [ "$percent" -gt 100 ]; then percent=99; fi
+    
+    local num_hashtags=$(( (percent * w) / 100 ))
+    local bar=""
+    for ((i=0; i<num_hashtags; i++)); do bar="${bar}="; done
+    for ((i=num_hashtags; i<w; i++)); do bar="${bar}."; done
+    
+    local curr_gb=$(awk "BEGIN {printf \"%.2f\", $curr/1024/1024/1024}")
+    local tot_gb=$(awk "BEGIN {printf \"%.2f\", $tot/1024/1024/1024}")
+    
+    printf "\r   Progress: [%s] %d%% (%s GB / %s GB)" "$bar" "$percent" "$curr_gb" "$tot_gb"
+}
+
+echo "--------------------------------------------------"
+echo "1. Calculating Input Size..."
+
+TOTAL_SIZE_BYTES=$(find ${INPUT_DIR} -name "output*.root" -printf "%s\n" | awk '{s+=$1} END {print s}')
+
+if [ -z "$TOTAL_SIZE_BYTES" ] || [ "$TOTAL_SIZE_BYTES" -eq "0" ]; then
+    echo "Error: Could not determine input size. Are paths correct?"
+    exit 1
+fi
+echo "   Total Input Data: $(awk "BEGIN {printf \"%.2f\", $TOTAL_SIZE_BYTES/1024/1024/1024}") GB"
+echo "   Targeting $N_JOBS output files (~ $(awk "BEGIN {printf \"%.2f\", $TOTAL_SIZE_BYTES/$N_JOBS/1024/1024/1024}") GB each)."
+
+echo "--------------------------------------------------"
+echo "2. Launching $N_JOBS parallel jobs..."
+
+# Generate Macro (Saved to INPUT_DIR)
+cat > ${MACRO_PATH} <<EOF
+#include <fstream>
+#include <string>
+void BatchMerge(const char* listFile, const char* outputFile) {
+    TFileMerger merger(kFALSE);
+    merger.SetFastMethod(kTRUE);
+    merger.OutputFile(outputFile);
+    ifstream file(listFile);
+    string str; 
+    int count = 0;
+    while (std::getline(file, str)) {
+        if(str.length() > 4) { merger.AddFile(str.c_str()); count++; }
+    }
+    if (count>0) merger.Merge();
+}
+EOF
+
+# Prepare Lists (Saved to INPUT_DIR)
+find ${INPUT_DIR} -name "output*.root" > ${ALL_FILES_LIST}
+split -n l/${N_JOBS} -d ${ALL_FILES_LIST} ${CHUNK_PREFIX}
+
+pids=""
+
+# Loop over the chunk lists we just created
+for listfile in ${CHUNK_PREFIX}*; do
+    # Extract ID (the part after the last underscore)
+    job_id=${listfile##*_} 
+    
+    # Define filenames
+    final_out="${OUTPUT_PREFIX}${job_id}.root"
+    log_file="${LOG_PREFIX}${job_id}.txt"
+    
+    # Run ROOT
+    root -l -b -q "${MACRO_PATH}(\"${listfile}\", \"${final_out}\")" > ${log_file} 2>&1 &
+    pids="$pids $!"
+done
+
+echo "--------------------------------------------------"
+echo "3. Monitor (Writing directly to final files)..."
+
+start_time=$(date +%s)
+while true; do
+    # Monitor output size
+    current_size=$(du -bc ${OUTPUT_PREFIX}*.root 2>/dev/null | tail -1 | cut -f1)
+    if [ -z "$current_size" ]; then current_size=0; fi
+
+    draw_bar $current_size $TOTAL_SIZE_BYTES 30
+
+    # Check for crashes in logs (Reading from INPUT_DIR)
+    err_check=$(grep -i "SysError" ${LOG_PREFIX}*.txt 2>/dev/null | head -1)
+    if [ ! -z "$err_check" ]; then
+        echo -e "\n\nCRITICAL ERROR DETECTED IN LOGS:"
+        grep -i "SysError" ${LOG_PREFIX}*.txt | head -1
+        echo "Killing jobs..."
+        kill $pids 2>/dev/null
+        exit 1
+    fi
+
+    # Check if jobs finished
+    running=0
+    for pid in $pids; do
+        if kill -0 $pid 2>/dev/null; then ((running++)); fi
+    done
+    
+    if [ "$running" -eq "0" ]; then
+        draw_bar $TOTAL_SIZE_BYTES $TOTAL_SIZE_BYTES 30
+        echo "" 
+        break
+    fi
+    sleep 2
+done
+
+# Cleanup (Deletes files from INPUT_DIR)
+rm ${CHUNK_PREFIX}* ${LOG_PREFIX}* ${ALL_FILES_LIST} ${MACRO_PATH}
+
+end_time=$(date +%s)
+echo "--------------------------------------------------"
+echo "Done! Created $N_JOBS files."
+echo "Location: ${INPUT_DIR}"
+echo "Naming format: pythia_tree_${DATE}_seqXX.root"
+echo "Total time: $((end_time - start_time)) seconds."

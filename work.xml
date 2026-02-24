@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<job name="PythiaRoot"
+     maxFilesPerProcess="5"
+     fileListSyntax="paths"
+     simulateSubmission="false">
+
+
+    <command>
+        setup 64bits
+        setup nfs4
+
+        # Copy analysis macro to local working dir
+        cp /star/data01/pwg/ptribedy/pythia8p3_from_milan/flowanalysis.C .
+
+        # Input file (from filelist)
+        set INFILE = "$FILELIST"
+
+        # Output file name: one ROOT file per job, tagged by JOBID
+        set OUTFILE = "analysis_${JOBID}.root"
+
+        echo "Processing file: $INFILE"
+        echo "Output file:     $OUTFILE"
+
+        # Run the macro
+        root -l -b -q 'flowanalysis.C("'$INFILE'","'$OUTFILE'")'
+    </command>
+
+
+        <!-- List of input ROOT files (one per job thanks to maxFilesPerProcess=1) -->
+    <input URL="filelist:/star/data05/scratch/ptribedy/pythia_pp200/rootfiles.list" />
+
+    <!-- Logs -->
+    <stdout URL="file:/star/data05/scratch/ptribedy/pythia_pp200/log/$JOBID.out" />
+    <stderr URL="file:/star/data05/scratch/ptribedy/pythia_pp200/log/$JOBID.err" />
+
+    <!-- Copy resulting ROOT files back to scratch -->
+    <output fromScratch="*.root"
+            toURL="file:/star/data05/scratch/ptribedy/pythia_pp200/" />
+
+    <Generator>
+        <Location>/star/data05/scratch/ptribedy/pythia_pp200/sched/</Location>
+    </Generator>
+</job>
+

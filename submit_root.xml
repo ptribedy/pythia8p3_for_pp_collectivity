@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<job name="PythiaRoot" maxFilesPerProcess="1" fileListSyntax="paths" simulateSubmission="false">
+
+    <command>
+        setup 64bits
+        setup nfs4
+        
+        echo "Processing: $INPUTFILE0"
+
+        cp /star/data01/pwg/ptribedy/pythia8p3_from_milan/log_to_root.C .
+
+        set base = `basename $INPUTFILE0 .log`
+        set outfile = "${base}.root"
+
+        echo "Output will be: $outfile"
+        root -l -b -q log_to_root.C\(\"$INPUTFILE0\",\"$outfile\"\)
+    </command>
+
+    <!-- Look for log files in your scratch directory -->
+    <input URL="file:/star/data05/scratch/ptribedy/pythia_pp200/output_*.log" />
+
+    <stdout URL="file:/star/data05/scratch/ptribedy/pythia_pp200/log/$JOBID.out" />
+    <stderr URL="file:/star/data05/scratch/ptribedy/pythia_pp200/log/$JOBID.err" />
+
+    <!-- Copy resulting ROOT files back to scratch -->
+    <output fromScratch="*.root" toURL="file:/star/data05/scratch/ptribedy/pythia_pp200/" />
+
+    <Generator>
+        <Location>/star/data05/scratch/ptribedy/pythia_pp200/sched/</Location>
+    </Generator>
+</job>

@@ -1,0 +1,17 @@
+*.root
+*.roo
+*.log
+*.o
+*.so
+*.d
+*.session.xml
+*.dataset
+*.package.zip
+
+old_*
+orig_*
+almost_*
+12_*
+
+Brian/
+junk/

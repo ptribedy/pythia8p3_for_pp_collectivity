@@ -1,0 +1,5 @@
+    rm /star/data05/scratch/ptribedy/pythia_pp200/*log
+    rm /star/data05/scratch/ptribedy/pythia_pp200/log/*
+    rm /star/data05/scratch/ptribedy/pythia_pp200/sched/Pythia*
+    rm /star/data05/scratch/ptribedy/pythia_pp200/out*root
+    rm /star/data05/scratch/ptribedy/pythia_pp200/analysis*root

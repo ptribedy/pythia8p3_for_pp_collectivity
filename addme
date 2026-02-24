@@ -1,0 +1,8 @@
+#!/bash/bin
+date +%Y%m%d%H%M%S
+DATE=$(date +%d_%m_%Y_%h_%m_%s)
+OUT_DIR="/star/data05/scratch/ptribedy/pythia_pp200"
+
+hadd pythia_analysis_${DATE}.root  ${OUT_DIR}/analysis*.root
+
+echo "get $PWD/pythia_analysis_${DATE}.root"
