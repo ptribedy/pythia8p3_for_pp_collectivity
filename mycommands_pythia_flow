@@ -1,0 +1,327 @@
+#!/bin/bash
+# User settings
+# Define colors
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+FILE=${1:-}
+USER_MINBIN=${2:-}
+USER_MAXBIN=${3:-}
+DETAMIN=${4:-}
+DETAMAX=${5:-}
+
+# Check if ANY of the 5 variables are missing (-z checks for empty string)
+if [[ -z "$FILE" || -z "$USER_MINBIN" || -z "$USER_MAXBIN" || -z "$DETAMIN" || -z "$DETAMAX" ]]; then
+  echo -e "${RED}ERROR: Missing arguments!${NC}" >&2
+  echo -e "Usage: $0 <root_file> [MINBIN] [MAXBIN] [DETAMIN] [DETAMAX]" >&2
+  echo -e "${RED}Example: bash mycommands_flow prith_qahist_111.root 2 2 0.0 3.0${NC}" >&2
+  exit 1
+fi
+
+
+cat > centrality_npart << 'EOF'
+0 0 0 0 0 0 55
+0 0 0 0 1 0 45
+0 0 0 0 2 0 35
+0 0 0 0 3 0 55
+0 0 0 0 4 0 45
+0 0 0 0 5 0 35
+0 0 0 0 6 0 25
+0 0 0 0 7 0 15
+0 0 0 0 8 0 7.5
+EOF
+
+TAG="pp200"
+
+
+bash superdrawlite.sh ${FILE} "v1tpc_subevent" 4 "Centrality" "{/Symbol \341}v_{2}{/Symbol \173}SP{/Symbol \175}{/Symbol \361}" 0 "p+p 200 GeV, (TPC-TPC), All centrality" 0 $TAG 1.0 1.0 -0.001 1 1 0.25 0.9 "AUTO" "AUTO" 0 0 "AUTO"
+
+bash superdrawlite.sh ${FILE} "v2tpc_subevent" 4 "Centrality" "{/Symbol \341}v_{2}{/Symbol \173}SP{/Symbol \175}{/Symbol \361}" 0 "p+p 200 GeV, (TPC-TPC), All centrality" 0 $TAG 1.0 1.0 -0.001 1 1 0.25 0.9 "AUTO" "AUTO" 0 0 "AUTO"
+
+bash superdrawlite.sh ${FILE} "v3tpc_subevent" 4 "Centrality" "{/Symbol \341}v_{2}{/Symbol \173}SP{/Symbol \175}{/Symbol \361}" 0 "p+p 200 GeV, (TPC-TPC), All centrality" 0 $TAG 1.0 1.0 -0.001 1 1 0.25 0.9 "AUTO" "AUTO" 0 0 "AUTO"
+
+bash superdrawlite.sh ${FILE} "v12tpc" 4 "Centrality" "{/Symbol \341}v_{2}{/Symbol \173}SP{/Symbol \175}{/Symbol \361}" 0 "p+p 200 GeV, (TPC-TPC), All centrality" 0 $TAG 1.0 1.0 -0.001 1 1 0.25 0.9 "AUTO" "AUTO" 0 0 "AUTO"
+
+bash superdrawlite.sh ${FILE} "v22tpc" 4 "Centrality" "{/Symbol \341}v_{2}{/Symbol \173}SP{/Symbol \175}{/Symbol \361}" 0 "p+p 200 GeV, (TPC-TPC), All centrality" 0 $TAG 1.0 1.0 -0.001 1 1 0.25 0.9 "AUTO" "AUTO" 0 0 "AUTO"
+
+bash superdrawlite.sh ${FILE} "v32tpc" 4 "Centrality" "{/Symbol \341}v_{2}{/Symbol \173}SP{/Symbol \175}{/Symbol \361}" 0 "p+p 200 GeV, (TPC-TPC), All centrality" 0 $TAG 1.0 1.0 -0.001 1 1 0.25 0.9 "AUTO" "AUTO" 0 0 "AUTO"
+
+
+
+# ------------------------------------------------------------------------------
+# full event \Delta\eta>1.3 v1^2 v2^2, v3^2 (TPC)
+# ------------------------------------------------------------------------------
+
+# v1 squared (v12)
+paste <(awk '$1!="#" && $1!="##"{print $0}' "v12tpc${TAG}.txt") centrality_npart \
+  | awk '{print 0,0,0,0,$2,$3,$11,$12,$13}' \
+  > v12_fullEv_deta1p3_nofit
+
+
+# v2 squared (v22)
+paste <(awk '$1!="#" && $1!="##"{print $0}' "v22tpc${TAG}.txt") centrality_npart \
+  | awk '{print 0,0,0,0,$2,$3,$11,$12,$13}' \
+  > v22_fullEv_deta1p3_nofit
+
+
+# v3 squared (v32)
+paste <(awk '$1!="#" && $1!="##"{print $0}' "v32tpc${TAG}.txt") centrality_npart \
+  | awk '{print 0,0,0,0,$2,$3,$11,$12,$13}' \
+  > v32_fullEv_deta1p3_nofit
+
+
+
+
+# ------------------------------------------------------------------------------
+# subevent v2, v3 (TPC)
+# ------------------------------------------------------------------------------
+
+paste <(awk '$1!="#" && $1!="##"{print $0}' "v1tpc_subevent${TAG}.txt") centrality_npart \
+  | awk '{print 0,0,0,0,($2**0.5),(0.5*$2**-0.5*$3),$11,$12,$13}' \
+  > v1_subEv_nofit
+
+# duplicate with alternative name to match refmult_analysis.C naming
+cp v1_subEv_nofit v1_subevent_nofit
+
+paste <(awk '$1!="#" && $1!="##"{print $0}' "v2tpc_subevent${TAG}.txt") centrality_npart \
+  | awk '{print 0,0,0,0,($2**0.5),(0.5*$2**-0.5*$3),$11,$12,$13}' \
+  > v2_subEv_nofit
+
+# duplicate with alternative name to match refmult_analysis.C naming
+cp v2_subEv_nofit v2_subevent_nofit
+
+paste <(awk '$1!="#" && $1!="##"{print $0}' "v3tpc_subevent${TAG}.txt") centrality_npart \
+  | awk '{print 0,0,0,0,($2**0.5),(0.5*$2**-0.5*$3),$11,$12,$13}' \
+  > v3_subEv_nofit
+
+cp v3_subEv_nofit v3_subevent_nofit
+
+# v1 squared (v12)
+paste <(awk '$1!="#" && $1!="##"{print $0}' "v1tpc_subevent${TAG}.txt") centrality_npart \
+  | awk '{print 0,0,0,0,$2,$3,$11,$12,$13}' \
+  > v12_subEv_nofit
+
+cp v12_subEv_nofit v12_subevent_nofit
+
+
+# v2 squared (v22)
+paste <(awk '$1!="#" && $1!="##"{print $0}' "v2tpc_subevent${TAG}.txt") centrality_npart \
+  | awk '{print 0,0,0,0,$2,$3,$11,$12,$13}' \
+  > v22_subEv_nofit
+
+cp v22_subEv_nofit v22_subevent_nofit
+
+
+# v3 squared (v32)
+paste <(awk '$1!="#" && $1!="##"{print $0}' "v3tpc_subevent${TAG}.txt") centrality_npart \
+  | awk '{print 0,0,0,0,$2,$3,$11,$12,$13}' \
+  > v32_subEv_nofit
+
+cp v32_subEv_nofit v32_subevent_nofit
+
+
+ptbinmin=0
+ptbinmax=8                 # IMPORTANT: pt bins are 0..8
+LR_detaMin="${DETAMIN}"
+LR_detaMax="${DETAMAX}"
+
+SR_detaMin="0.0"
+SR_detaMax="${DETAMIN}"     # control window is 0 -> user DETAMIN
+
+echo "===== Running mergetemplatefit.C template fits (cent=0..8) ====="
+echo "LR Δη range: [${LR_detaMin}, ${LR_detaMax}]"
+echo "SR Δη range: [${SR_detaMin}, ${SR_detaMax}]"
+echo "Using pT bins:  [${ptbinmin}, ${ptbinmax}]"
+echo
+
+# Loop over regions: first LR, then SR
+for REGIONTAG in LR SR; do
+
+  if [ "${REGIONTAG}" = "LR" ]; then
+    deltaetaMin="${LR_detaMin}"
+    deltaetaMax="${LR_detaMax}"
+  else
+    deltaetaMin="${SR_detaMin}"
+    deltaetaMax="${SR_detaMax}"
+  fi
+
+  echo "===== REGIONTAG=${REGIONTAG}  Δη=[${deltaetaMin}, ${deltaetaMax}] ====="
+
+  # Loop over pair types
+  for pairTag in all os ss; do
+    echo "----- pairTag=${pairTag} -----"
+
+    # Run ROOT fits for each centrality bin
+    for cenbin in 0 1 2 3 4 5 6 7 8; do
+      cmd="root -l -q \"mergetemplatefit.C(${cenbin},${ptbinmin},${ptbinmax},\\\"${FILE}\\\",${deltaetaMin},${deltaetaMax},\\\"${pairTag}\\\")\""
+      echo -e "\033[31m$cmd\033[0m"
+      eval "$cmd"
+    done
+
+    # ------------------------------------------------------------------
+    # Post-process fit_dndphi_* files for this (REGIONTAG, pairTag)
+    # Filename format now:
+    # fit_dndphi_<pairTag>_<cent>_<ptmin>_<ptmax>_<detaMin>_<detaMax>.txt
+    # ------------------------------------------------------------------
+    pattern=$(printf "fit_dndphi_%s_*_%d_%d_%g_%g.txt" \
+                     "${pairTag}" "$ptbinmin" "$ptbinmax" "$deltaetaMin" "$deltaetaMax")
+
+    echo "Using files matching pattern: $pattern"
+
+    shopt -s nullglob
+    files=( $pattern )
+    shopt -u nullglob
+
+    if [ ${#files[@]} -eq 0 ]; then
+      echo -e "${RED}ERROR: No files matched: $pattern${NC}" >&2
+      exit 2
+    fi
+
+    # ------------------ HM Fourier-fit vn (cols 19–24) -----------------
+    paste <(awk 'FNR==1 {print 0.,0.,0.,0.,$19,$20}' "${files[@]}") \
+          <(awk '{print $5,$6,$7}' centrality_npart) \
+      > "v12pc_fourierfit_${pairTag}_${REGIONTAG}"
+
+    paste <(awk 'FNR==1 {print 0.,0.,0.,0.,$21,$22}' "${files[@]}") \
+          <(awk '{print $5,$6,$7}' centrality_npart) \
+      > "v22pc_fourierfit_${pairTag}_${REGIONTAG}"
+
+    paste <(awk 'FNR==1 {print 0.,0.,0.,0.,$23,$24}' "${files[@]}") \
+          <(awk '{print $5,$6,$7}' centrality_npart) \
+      > "v32pc_fourierfit_${pairTag}_${REGIONTAG}"
+
+    # ------------- Template+ridge-fit vn (cols 11–18) ------------------
+    paste <(awk 'FNR==1 {print 0.,0.,0.,0.,$11,$12}' "${files[@]}") \
+          <(awk '{print $5,$6,$7}' centrality_npart) \
+      > "v22pc_templatefit_${pairTag}_${REGIONTAG}"
+
+    paste <(awk 'FNR==1 {print 0.,0.,0.,0.,$13,$14}' "${files[@]}") \
+          <(awk '{print $5,$6,$7}' centrality_npart) \
+      > "v32pc_templatefit_${pairTag}_${REGIONTAG}"
+
+    echo "Wrote: v12pc_fourierfit_${pairTag}_${REGIONTAG}, v22pc_fourierfit_${pairTag}_${REGIONTAG}, v32pc_fourierfit_${pairTag}_${REGIONTAG}"
+    echo "Wrote: v22pc_templatefit_${pairTag}_${REGIONTAG}, v32pc_templatefit_${pairTag}_${REGIONTAG}"
+    echo
+  done
+done
+
+echo "===== All SR+LR runs finished ====="
+
+
+# ============================================================
+# Backward compatibility:
+# Make all_LR identical to old default filenames
+# ============================================================
+
+echo "===== Creating backward-compatible default outputs (all_LR → old names) ====="
+
+# Fourier fits
+cp -f v12pc_fourierfit_all_LR v12pc_fourierfit
+cp -f v22pc_fourierfit_all_LR v22pc_fourierfit
+cp -f v32pc_fourierfit_all_LR v32pc_fourierfit
+
+# Template fits
+cp -f v22pc_templatefit_all_LR v22pc_templatefit
+cp -f v32pc_templatefit_all_LR v32pc_templatefit
+
+echo "Restored legacy filenames:"
+echo "  v12pc_fourierfit"
+echo "  v22pc_fourierfit"
+echo "  v32pc_fourierfit"
+echo "  v22pc_templatefit"
+echo "  v32pc_templatefit"
+echo "===== Done ====="
+
+
+
+# ============================================================
+# Build OS+SS and OS-SS (and CI/CD) at c_n = v_n^2 level
+# Input file format (9 cols): 0 0 0 0 VALUE ERROR ACTBIN X NCH
+# VALUE = col5, ERROR = col6, ACTBIN = col7 (as used by your plot macro) [file:2]
+# ============================================================
+
+echo "===== Building OS±SS combinations (derived text files) ====="
+
+combine_os_ss () {
+  local VTAG="$1"
+  local REGIONTAG="$2"
+
+  local OS_FILE="${VTAG}_os_${REGIONTAG}"
+  local SS_FILE="${VTAG}_ss_${REGIONTAG}"
+
+  local OUT_SUM="${VTAG}_OSplusSS_${REGIONTAG}"
+  local OUT_DIFF="${VTAG}_OSminusSS_${REGIONTAG}"
+  local OUT_CI="${VTAG}_CI_${REGIONTAG}"
+  local OUT_CD="${VTAG}_CD_${REGIONTAG}"
+
+  if [[ ! -f "$OS_FILE" ]]; then
+    echo "ERROR: missing $OS_FILE" >&2
+    return 11
+  fi
+  if [[ ! -f "$SS_FILE" ]]; then
+    echo "ERROR: missing $SS_FILE" >&2
+    return 12
+  fi
+
+  # Clear outputs so reruns don't append old content
+  : > "$OUT_SUM"
+  : > "$OUT_DIFF"
+  : > "$OUT_CI"
+  : > "$OUT_CD"
+
+  # Robust join by ACTBIN (col 7)
+  awk -v sumfile="$OUT_SUM" -v difffile="$OUT_DIFF" -v cifile="$OUT_CI" -v cdfile="$OUT_CD" '
+    function sqr(x){return x*x}
+
+    # Read SS into maps keyed by ACTBIN
+    FNR==NR {
+      if ($0 ~ /^#/ || NF < 7) next
+      key = $7
+      ss_v[key] = $5
+      ss_e[key] = $6
+      next
+    }
+
+    # Now read OS, match to SS by key
+    {
+      if ($0 ~ /^#/ || NF < 7) next
+      key = $7
+      if (!(key in ss_v)) next
+
+      vos = $5; eos = $6
+      vss = ss_v[key]; ess = ss_e[key]
+
+      vsum  = vos + vss
+      esum  = sqrt(sqr(eos) + sqr(ess))
+
+      vdiff = vos - vss
+      ediff = sqrt(sqr(eos) + sqr(ess))
+
+      vci   = 0.5*(vos + vss)
+      eci   = 0.5*sqrt(sqr(eos) + sqr(ess))
+
+      vcd   = 0.5*(vos - vss)
+      ecd   = eci
+
+      # Preserve columns 7–9 from OS file (ACTBIN and whatever else you store there)
+      printf "0 0 0 0  %.8g  %.8g  %g  %g  %g\n", vsum,  esum,  $7, $8, $9 >> sumfile
+      printf "0 0 0 0  %.8g  %.8g  %g  %g  %g\n", vdiff, ediff, $7, $8, $9 >> difffile
+      printf "0 0 0 0  %.8g  %.8g  %g  %g  %g\n", vci,   eci,   $7, $8, $9 >> cifile
+      printf "0 0 0 0  %.8g  %.8g  %g  %g  %g\n", vcd,   ecd,   $7, $8, $9 >> cdfile
+    }
+  ' "$SS_FILE" "$OS_FILE"
+
+  echo "Wrote: $OUT_SUM  $OUT_DIFF  $OUT_CI  $OUT_CD"
+}
+
+VTAGS_FOURIER="v12pc_fourierfit v22pc_fourierfit v32pc_fourierfit"
+VTAGS_TEMPLATE="v22pc_templatefit v32pc_templatefit"
+
+for REGIONTAG in LR SR; do
+  for VTAG in $VTAGS_FOURIER $VTAGS_TEMPLATE; do
+    combine_os_ss "$VTAG" "$REGIONTAG" || exit $?
+  done
+done
+
+echo "===== Done making derived OS/SS combination files ====="
+
