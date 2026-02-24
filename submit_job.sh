@@ -10,6 +10,12 @@
 
 if [[ -z "$1" ]]; then
     echo "Usage: $0 [log|root|analysis] [ARG2]"
+
+   echo "1. Generate Logs:    ./submit_job.sh log [N_JOBS] "
+   echo "2. Convert to Root:  ./submit_job.sh root "
+   echo "2.B You must run addroot_tree: ./addroot_tree  
+   echo "3. Run Analysis:     ./submit_job.sh analysis [FILES_PER_JOB] "
+
     exit 1
 fi
 
